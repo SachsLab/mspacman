@@ -1,9 +1,5 @@
 import numpy as np
 from scipy.stats import entropy
-from ..utilities.parallel import Parallel
-
-def init_parpac(func, **kwargs):
-    return Parallel(func, **kwargs)
 
 def pad(ang, amp, nbins=30, axis=-1):
     """ Organize the signals into a phase-amplitude distribution.
