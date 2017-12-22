@@ -20,10 +20,39 @@ class Counter(object):
         with self.lock:
             return self.val.value
 
+class ParallelDummy(object):
+    """
+    This class is created to wrap a function such that it has the same iterface as the Parallel class.
+    """
+    function = {}
+
+    def __init__(self, func, *args, **kwargs):
+        self.f_name = func.__name__
+        self.function[self.f_name] = func
+        self.kwargs = kwargs
+
+        self.del_opt = None
+
+    def __del__(self):
+        self.kill(opt=self.del_opt)
+
+    def kill(self, opt=None):
+        if opt is not None:
+            print("The object, {}, is deleted off the memory.".format(self))
+
+        del self
+
+    def result(self, *args, **kwargs):
+        return self.function[self.f_name](*args, **self.kwargs)
+
 class Parallel(object):
+    """
+    This class is created to wrap a function for multiprocessing.
+    """
     function = {}
     def __init__(self, func, *args, nprocs=1, axis=0, flag=0, **kwargs):
         self.nprocs = nprocs
+        self.del_opt = None
 
         self.f_name = func.__name__
         self.function[self.f_name] = func
@@ -78,7 +107,7 @@ class Parallel(object):
                 p.start()
 
     def __del__(self):
-        self.kill()
+        self.kill(opt=self.del_opt)
 
     def kill(self, opt=None): # kill the multiprocess
 

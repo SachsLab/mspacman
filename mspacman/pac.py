@@ -1,184 +1,298 @@
 import numpy as np
-from scipy.stats import entropy
-from ..utilities.parallel import Parallel
+import matplotlib.pyplot as plt
 
-def init_parpac(func, **kwargs):
-    return Parallel(func, **kwargs)
+import warnings
+from pytf.filter.filterbank import FilterBank
+from .algorithm.pac_ import (pad, mrpad, polar, pac_mvl, pac_hr, pac_mi)
+from .utilities.parallel import (Parallel, ParallelDummy)
 
-def pad(ang, amp, nbins=30, axis=-1):
-    """
-    Organize the signals into a phase-amplitude distribution.
+func = dict([
+    ('mi', mrpad),
+    ('hr', mrpad),
+    ('mvl', polar)
+])
+pacfunc = dict([
+    ('mi', pac_mi),
+    ('hr', pac_hr),
+    ('mvl', pac_mvl)
+])
+class PhaseAmplitudeCoupling(object):
+    """ This class is for computing phase-amplitude coupling (PAC).
 
-    Parameters
-    ----------
-    ang: array_like
-        Phase of the low frequency signal.
+    Parameters:
+    -----------
+    freq_phase: ndarray
+        An array of frequency bands for phase signals.
 
-    amp: array_like
-        Amplitude envelop of the high frequency signal.
+    freq_amp: ndarray
+        An array of frequency bands for amplitude signals.
 
-    nbins: int
-        The bin size for the phases.
+    sample_rate: int
+        Sampling of the input signal.
 
-    Returns
-    -------
-    pd: array_like
-        The phase-amplitude distribution.
+    nprocs: int
+        Number of processes to enable for multiprocessing.
 
-    phase_bins: array_like
-        The binned locations (phases) of the distribution.
+    unit: str (default: 'hz')
+        The units of all frequencies.
 
-    Note
-    ----
-    The input signals can only be 1-dimensional (along the number of samples).
-    """
-    nfr_a = amp.shape[1]
-    nch   = ang.shape[0]
-    nfr_p = ang.shape[1]
-    phase_bins = np.linspace(-np.pi, np.pi, int(nbins + 1))
-    pd = np.zeros((nch, nfr_p, nfr_a, int(nbins)))
-    for b in range(int(nbins)):
-        t_phase = np.logical_and(ang >= phase_bins[b],
-                                 ang < phase_bins[b + 1])
+    pac: str (default: 'mi')
+        The PAC method specified.
 
-        pd[:,:,:,b] = np.mean(amp[:,np.newaxis,:,:] * t_phase[:,:,np.newaxis,:], axis=axis)
+    decimate_by:
 
-    return pd
-
-def pad_mr(ang, amp, nbins=30, axis=-1, flag=0):
-    size1 = ang.shape[-1]
-    size2 = amp.shape[-1]
-    decimate = int(np.round(size2 / size1))
-
-    angd = ang
-    ampd = amp
-    if flag:
-        ampd = ampd[:,:,::decimate]
-    else:
-        angd = np.repeat(angd, decimate, axis=axis)
-        diff = angd.shape[-1] - ampd.shape[-1]
-        if diff:
-            angd = angd[:,:,:-diff]
-
-    return pad(angd, ampd, nbins=nbins, axis=axis)
-
-def polar(ang, amp):
-    """
-    Calculate the polar coordinates of the amplitude and the phase as time changes.
-
-    Parameters
-    ----------
-    ang: array_like
-        Phase of the low frequency signal.
-
-    amp: array_like
-        Amplitude envelop of the high frequency signal.
-
-    Returns
-    -------
-    z: array_like
-        The complex exponentials of the signal.
-
-    Note
-    ----
-    The input signals can only be 1-dimensional (along the number of samples).
+    kwargs:
 
     """
-    z = amp * np.exp(1j * ang)
-    return z
+    def __init__(self, nch=1, nsamp=2**11, binsize=2**14, freq_phase=None, freq_amp=None, sample_rate=None, \
+                    decimate_by=1, nprocs=1, pac='mi', mprocs=False, **kwargs):
 
-def pac_mvl(z):
-    """
-    Calculate PAC using the mean vector length.
+        self._nprocs = nprocs
+        self._mprocs = True if self.nprocs > 1 else mprocs 
+        self._method = pac
 
-    Parameters
-    ----------
-    ang: array_like
-        Phase of the low frequency signal.
+        self._decimate_by = decimate_by
+        self._nsamp = nsamp
+        self._nsamp_ = self.nsamp // self.decimate_by
+        self.overlap_factor = 0.5
+        self._binsize = binsize
+        self._nwin = int((self._nsamp / self._binsize) / self.overlap_factor + 1)
 
-    amp: array_like
-        Amplitude envelop of the high frequency signal.
+        # Initialize filter bank parameters
+        self._freq_phase = freq_phase
+        self._freq_amp = freq_amp
+        self._sample_rate = sample_rate
 
-    Returns
-    -------
-    out: float
-        The pac strength using the mean vector length.
+        self.nch = nch
+        self.fpsize = self.freq_phase.shape[0]
+        self.fasize = self.freq_amp.shape[0]
 
-    Note
-    ----
-    The input signals can only be 1-dimensional (along the number of samples).
+        if self.freq_phase is not None or self.freq_amp is not None:
+            self._order = self._binsize // 4
+            self._los = FilterBank(nch=self.nch, nwin=self._nwin,\
+                    binsize=self._binsize, freq_bands=self.freq_phase,\
+                    order=self._order, sample_rate=self.sample_rate,\
+                    decimate_by=self.decimate_by, hilbert=True, nprocs=1\
+                )
 
-    """
-    out = np.abs(np.mean(z, axis=-1))
-    # out = np.abs(np.sum(z,axis=0))
-    # out /= np.sqrt(np.sum(amp * amp,axis=0))
-    # print(z.shape, out, np.max(np.abs(z)), np.mean(amp, axis=0))
+            self._his = FilterBank(nch=self.nch, nwin=self._nwin,\
+                    binsize=self._binsize, freq_bands=self.freq_amp,\
+                    order=self._order, sample_rate=self.sample_rate,\
+                    decimate_by=self.decimate_by, hilbert=True, nprocs=1\
+                )
 
-    # out /= np.max(amp)
-    # out /= np.sqrt(z.shape[0])
+        # Initialize PAC
+        self.init_multiprocess(
+                                ins_shape=[(self.nch, self.fpsize, self.nsamp_), (self.nch, self.fasize, self.nsamp_)],\
+                                out_shape=(self.nch, self.fpsize, self.fasize), \
+                                method=self.method, **kwargs
+                        )
 
-    return out
+    def init_multiprocess(self, ins_shape=None, out_shape=None,
+                                ins_dtype=[np.float32, np.float32],
+                                out_dtype=np.float32, **kwargs):
+        """ Initializing multiprocessing for this class.
 
-def pac_hr(pd):
-    """
-    Calculate PAC value using the height ratio.
+        Parameters:
+        ----------
+        ins_shape: tuple (default: None)
+            The shape of the input arrays, phases, and amplitudes.
 
-    Parameters
-    ----------
-    ang: array_like
-        Phase of the low frequency signal.
+        out_shape: tuple (default: None)
+            The shape of the output array (nch, nlo, nhi, nbins).
+        """
+        if self.mprocs:
+            self._pfunc = Parallel(
+                            self.get_pac, nprocs=self.nprocs, axis=1, flag=0,
+                            ins_shape=ins_shape, out_shape=out_shape,
+                            ins_dtype=ins_dtype, out_dtype=out_dtype,
+                            **kwargs
+                        )
 
-    amp: array_like
-        Amplitude envelop of the high frequency signal.
+        else:
+            warnings.warn("The multiprocessing is disabled! To enable multiprocessing, "+\
+                        "specify 'ins_shape' and 'out_shape' for preallocating shared memory.")
 
-    Returns
-    -------
-    out: float
-        The pac strength using the height ratio.
+            self._pfunc = ParallelDummy(self.get_pac, **kwargs)
 
-    Note
-    ----
-    The input signals can only be 1-dimensional (along the number of samples).
 
-    """
-    # amp = amp.copy()
-    # amp /= np.sum(amp, axis=-1)
-    # pd = pad(ang, amp)
-    out = 1 - np.nanmin(pd, axis=-1) / np.nanmax(pd, axis=-1)
+    def kill(self, opt=None): # kill the multiprocess
+        """ Killing all the multiprocessing processes.
+        """
+        self._pfunc.kill(opt=True)
+        # self._los._pfunc.kill(opt=True)
+        # self._his._pfunc.kill(opt=True)
 
-    return out
+    def comodulogram(self, x=None, x_lo=None, x_hi=None, **kwargs):
+        """ Compute vectorized PAC. i.e., the computed PAC has the shape of (nch, nlo, nhi).
 
-def pac_mi(pd):
-    """
-    Calculate PAC using the modulation index.
+        Parameters:
+        -----------
+        x: ndarray (nch, nsamp)
+            Raw input signal.
 
-    Modulation Index
-    See Adriano et al., J Neurophysiol 2010 for details.
-    Dkl(P, U) = sum(P * log(P/U)),
-    where P is phase-amplitude-distribution,
-          U is uniform distribution,
-          Dkl is Kullback-Liebler distance
+        x_lo: ndarray (nch, nfreq, nsamp)
+            Lowpass filtered input signal.
 
-    MI = Dkl(P, U)/log(N)
-      Where N is the number of phase bins
+        x_hi: ndarray (nch, nfreq, nsamp)
+            Highpass filtered input signal.
 
-    Parameters
-    ----------
-    ang: array_like
-        Phase of the low frequency signal.
+        kwargs: dict
+            The key-word arguments to the functions, pad or polar.
 
-    amp: array_like
-        Amplitude envelop of the high frequency signal.
+        Return:
+        -------
+        The computed PAC.
+        """
+        self._xlo = x_lo if x_lo is not None else self.los.analysis(x, window='hanning')
+        self._xhi = x_hi if x_hi is not None else self.his.analysis(x, window='hanning')
 
-    Returns
-    -------
-    out: float
-        The pac strength using the modulation index.
+        self._comod = self._pfunc.result(np.angle(self._xlo), np.abs(self._xhi))
+        return self._comod
 
-    Note
-    ----
-    The input signals can only be 1-dimensional (along the number of samples).
+    def plot_comodulogram(self, ch=None, axs=None, figsize=None, cbar=False, cmap=None,
+                                vmin=None, vmax=None, norm=None, label=False):
+        """
+        Plot comodulogram.
 
-    """
-    out = entropy(pd.T, np.ones(pd.shape).T).T
-    return out
+        Parameters:
+        -----------
+
+        Returns:
+        --------
+        """
+        _comod = self._comod[ch,:,:][np.newaxis,:,:] if ch is not None else self._comod
+
+        nch, nlo, nhi = _comod.shape
+
+        # Build Figures
+        figsize = (4 * nch, 5) if figsize is None else figsize
+        if axs is None:
+            fig, axs = plt.subplots(1, nch, figsize=figsize)
+        else:
+            fig = axs[0].figure
+
+        self._axs = np.array(axs).ravel()
+        self._fig = fig
+
+        # Imshow Parameters
+        extent = [  self.freq_phase[0,0], self.freq_phase[-1,-1],
+                    self.freq_amp[0,0], self.freq_amp[-1,-1]]
+
+        cmap = None if str(cmap).lower() is None else cmap
+        self._vmin = np.min(self._comod) if vmin is None else vmin
+        self._vmax = np.max(self._comod) if vmax is None else vmax
+
+        if norm is 'log':
+            from matplotlib.colors import LogNorm
+            norm = LogNorm(vmin=vmin, vmax=vmax)
+            self._vmin = None
+            self._vmax = None
+
+        elif norm.lower() is 'none':
+            norm = None
+
+        # Plot imshow()
+        self.cax = self._axs.copy()
+        for (i,), ax in np.ndenumerate(self._axs):
+            self.cax[i] = ax.imshow(_comod[i,:,:].T, cmap=cmap, norm=norm, vmin=self._vmin, vmax=self._vmax,
+                            aspect='auto', origin='lower', extent=extent,
+                            interpolation=None)
+
+        # Plot Labels
+        if label:
+            self._axs[0].set_ylabel('Amp. Freqs. [{}]'.format('hz'.title()))
+            for ax in self._axs:
+                ax.set_xlabel('Phase Freqs. [{}]'.format('hz'.title()))
+
+        return self._fig
+
+    def plot_pad(self, ch=None, axs=None, figsize=None, colors=None, nbins=10):
+        """
+        Plot PAD.
+
+        Parameters:
+        -----------
+
+        Returns:
+        --------
+        """
+        _lo = self._xlo[ch,:,:][np.newaxis,:,:] if ch is not None else self._xlo
+        _hi = self._xhi[ch,:,:][np.newaxis,:,:] if ch is not None else self._xhi
+
+        xlo = _lo.mean(axis=1)[:,np.newaxis,:]
+        xhi = _hi.mean(axis=1)[:,np.newaxis,:]
+
+        pd = self._pac_repr_func(np.angle(xlo), np.abs(xhi), nbins=nbins)[:,0,0,:]
+
+        nch, _ = pd.shape
+        bin_centers = np.linspace(-np.pi, np.pi-np.pi/50, nbins+1) + np.pi/10
+
+        if axs is None:
+            fig, axs = plt.subplots(1, nch, figsize=figsize)
+        else:
+            fig = axs[0].figure
+
+        self._axs = np.array(axs).ravel()
+        self._fig = fig
+        for (i,), ax in np.ndenumerate(self._axs):
+            ax.bar(bin_centers[:-1], pd[i,:], width=.5)
+
+        return self._fig
+
+    @staticmethod
+    def get_pac(ang, amp, method='mi', **kwargs):
+        """
+        """
+        return pacfunc[method](func[method](ang, amp, **kwargs))
+
+    # ===================================
+    # Define Setters Parameters
+    # ===================================
+    @property
+    def los(self):
+        return self._los
+
+    @property
+    def his(self):
+        return self._his
+
+    @property
+    def freq_phase(self):
+        return self._freq_phase
+
+    @property
+    def freq_amp(self):
+        return self._freq_amp
+
+    @property
+    def sample_rate(self):
+        return self._sample_rate
+
+    @property
+    def method(self):
+        return self._method
+
+    @property
+    def nprocs(self):
+        return self._nprocs
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def mprocs(self):
+        return self._mprocs
+
+    @property
+    def nsamp(self):
+        return self._nsamp
+
+    @property
+    def nsamp_(self):
+        return self._nsamp_
+
+    @property
+    def decimate_by(self):
+        return self._decimate_by
