@@ -21,6 +21,12 @@ class PhaseAmplitudeCoupling(object):
 
     Parameters:
     -----------
+    nch: int
+        The number of channels of the processing signal.
+
+    nsamp: int
+        The sample size of the processing signal.
+
     freq_phase: ndarray
         An array of frequency bands for phase signals.
 
@@ -33,58 +39,63 @@ class PhaseAmplitudeCoupling(object):
     nprocs: int
         Number of processes to enable for multiprocessing.
 
-    unit: str (default: 'hz')
-        The units of all frequencies.
+    pac: str
+        The PAC method specified. Default is 'mi'.
 
-    pac: str (default: 'mi')
-        The PAC method specified.
-
-    decimate_by:
+    compression_factor:
 
     kwargs:
 
     """
     def __init__(self, nch=1, nsamp=2**11, binsize=2**14, freq_phase=None, freq_amp=None, sample_rate=None, \
-                    decimate_by=1, nprocs=1, pac='mi', mprocs=False, **kwargs):
+                    nprocs=1, pac='mi', mprocs=False, **kwargs):
 
+        # Pre-defined parameters
+        _comp_threshold = 20
+        _overlap_factor = 0.5
+
+        # Phase-Amplitude Coupling Properties
         self._nprocs = nprocs
-        self._mprocs = True if self.nprocs > 1 else mprocs 
+        self._mprocs = True if self.nprocs > 1 else mprocs
         self._method = pac
 
-        self._decimate_by = decimate_by
-        self._nsamp = nsamp
-        self._nsamp_ = self.nsamp // self.decimate_by
-        self.overlap_factor = 0.5
-        self._binsize = binsize
-        self._nwin = int((self._nsamp / self._binsize) / self.overlap_factor + 1)
-
-        # Initialize filter bank parameters
         self._freq_phase = freq_phase
         self._freq_amp = freq_amp
         self._sample_rate = sample_rate
-
-        self.nch = nch
         self.fpsize = self.freq_phase.shape[0]
         self.fasize = self.freq_amp.shape[0]
 
+        # Signal Properties
+        _comp_ratio = int(np.floor(self.sample_rate / self.freq_amp[-1,-1] / 2))
+        self._compression_factor = _comp_ratio if _comp_ratio < _comp_threshold else _comp_threshold
+
+        self._nch = nch
+        self._nsamp = nsamp
+        self._nsamp_ = self.nsamp // self.compression_factor
+
+        # Overlap-Window Parameters
+        self._binsize = binsize
+        self._nwin = int((self._nsamp / self._binsize) / _overlap_factor + 1)
+
+        # Initialize filter bank parameters
         if self.freq_phase is not None or self.freq_amp is not None:
             self._order = self._binsize // 4
-            self._los = FilterBank(nch=self.nch, nwin=self._nwin,\
+            self._los = FilterBank(nch=self.nch, nsamp=self.nsamp,\
                     binsize=self._binsize, freq_bands=self.freq_phase,\
                     order=self._order, sample_rate=self.sample_rate,\
-                    decimate_by=self.decimate_by, hilbert=True, nprocs=1\
+                    decimate_by=self.compression_factor, hilbert=True, nprocs=1\
                 )
 
-            self._his = FilterBank(nch=self.nch, nwin=self._nwin,\
+            self._his = FilterBank(nch=self.nch, nsamp=self.nsamp,\
                     binsize=self._binsize, freq_bands=self.freq_amp,\
                     order=self._order, sample_rate=self.sample_rate,\
-                    decimate_by=self.decimate_by, hilbert=True, nprocs=1\
+                    decimate_by=self.compression_factor, hilbert=True, nprocs=1\
                 )
 
         # Initialize PAC
-        self.init_multiprocess(
-                                ins_shape=[(self.nch, self.fpsize, self.nsamp_), (self.nch, self.fasize, self.nsamp_)],\
-                                out_shape=(self.nch, self.fpsize, self.fasize), \
+        self.init_multiprocess( ins_shape=[(self.nch, self.fpsize, self.nsamp_),\
+                                            (self.nch, self.fasize, self.nsamp_)],\
+                                out_shape=(self.nch, self.fpsize, self.fasize),\
                                 method=self.method, **kwargs
                         )
 
@@ -100,6 +111,9 @@ class PhaseAmplitudeCoupling(object):
 
         out_shape: tuple (default: None)
             The shape of the output array (nch, nlo, nhi, nbins).
+
+        kwargs: dict
+            The key-word arguments for get_pac() method.
         """
         if self.mprocs:
             self._pfunc = Parallel(
@@ -137,8 +151,8 @@ class PhaseAmplitudeCoupling(object):
         x_hi: ndarray (nch, nfreq, nsamp)
             Highpass filtered input signal.
 
-        kwargs: dict
-            The key-word arguments to the functions, pad or polar.
+        kwargs: various
+            The key-word arguments for 'mrpad' or 'polar'. See '.algorithm.pac_.py'
 
         Return:
         -------
@@ -154,12 +168,34 @@ class PhaseAmplitudeCoupling(object):
                                 vmin=None, vmax=None, norm=None, label=False):
         """
         Plot comodulogram.
+        TODO: Need to organize the plot better, and improve the implementation efficiency.
 
         Parameters:
         -----------
+        ch: int
+            Select the channel for plotting the comodulogram. Default: Select all channels.
+
+        axs: ndarray
+            Provide the Matplotlib Axes class to plot on. Default: Create a new figure and axes.
+
+        figsize: tuple
+            Specify the figure size.
+
+        vmin: float
+            The minimum value of the comodulogram.
+
+        vmax: float
+            The maximum value of the comodulogram.
+
+        norm: str
+            If 'log': Normalize the imshow() to values 0-1 range on a log scale.
+
+        label: bool
+            Label the plots. Default is False.
 
         Returns:
         --------
+        The matplotlib figure object.
         """
         _comod = self._comod[ch,:,:][np.newaxis,:,:] if ch is not None else self._comod
 
@@ -210,12 +246,27 @@ class PhaseAmplitudeCoupling(object):
     def plot_pad(self, ch=None, axs=None, figsize=None, colors=None, nbins=10):
         """
         Plot PAD.
+        TODO: Need more work on efficiency, as well as various plotting types.
 
         Parameters:
         -----------
+        ch: int
+            Select the channel for plotting the comodulogram. Default: Select all channels.
+
+        axs: ndarray
+            Provide the Matplotlib Axes class to plot on. Default: Create a new figure and axes.
+
+        figsize: tuple
+            Specify the figure size.
+
+        colors:
+            Specify the color of the bar.
+
+        kwargs
 
         Returns:
         --------
+        The matplotlib figure object.
         """
         _lo = self._xlo[ch,:,:][np.newaxis,:,:] if ch is not None else self._xlo
         _hi = self._xhi[ch,:,:][np.newaxis,:,:] if ch is not None else self._xhi
@@ -243,6 +294,25 @@ class PhaseAmplitudeCoupling(object):
     @staticmethod
     def get_pac(ang, amp, method='mi', **kwargs):
         """
+        Compute PAC from phases and amplitudes of the signal.
+
+        Parameters:
+        -----------
+        ang: ndarray
+            The instantaneous phases of the given signal.
+
+        amp: ndarray
+            The instantaneous amplitudes of the given signal.
+
+        method: str
+            The PAC method to used. Default: 'mi'.
+
+        kwargs: various
+            The key-word arguments for 'mrpad' or 'polar'. See '.algorithm.pac_.py'
+
+        Returns:
+        --------
+        The computed PAC/comodulogram
         """
         return pacfunc[method](func[method](ang, amp, **kwargs))
 
@@ -286,6 +356,10 @@ class PhaseAmplitudeCoupling(object):
         return self._mprocs
 
     @property
+    def nch(self):
+        return self._nch
+
+    @property
     def nsamp(self):
         return self._nsamp
 
@@ -294,5 +368,5 @@ class PhaseAmplitudeCoupling(object):
         return self._nsamp_
 
     @property
-    def decimate_by(self):
-        return self._decimate_by
+    def compression_factor(self):
+        return self._compression_factor
