@@ -1,14 +1,17 @@
 from setuptools import setup
 import os
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 setup(
     name = "mspacman",
     version = 0.1,
-    packages = ['mspacman', 'mspacman.algorithm', 'mspacman.utilities'],
-    install_requires=['numpy', 'scipy'],
+    packages = ['mspacman', 'mspacman.algorithm', 'mspacman.generator', 'mspacman.processing', 'mspacman.utilities'],
+    install_requires=['numpy', 'scipy', 'pytf'],
     author = "David Lu",
     author_email = "davidlu89@gmail.com",
-    description = "mspacman is a tool for phase-amplitude coupling (PAC) analysis",
+    description = "mspacman is a tool for analyzing Phase-Amplitude Coupling",
     url='https://github.com/davidlu89/mspacman',
     classifiers = [
         'Development Status :: 4 - Beta',
