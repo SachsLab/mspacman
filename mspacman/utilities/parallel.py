@@ -1,4 +1,3 @@
-
 from __future__ import division
 
 import time
@@ -7,6 +6,9 @@ import numpy as np
 import multiprocessing as mp
 import warnings
 from . import share_utilities as sh
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 class Counter(object):
     def __init__(self, initval=0):

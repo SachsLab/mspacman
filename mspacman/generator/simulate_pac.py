@@ -1,9 +1,9 @@
-# ==============================================
-# ============ Importing Modules ===============
-# ==============================================
 import numpy as np
 from .noise import (white, pink)
 from pyfftw.interfaces.numpy_fft import irfft, fft, fftfreq, fftshift
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 class PACGenerator:
     """

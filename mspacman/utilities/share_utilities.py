@@ -1,6 +1,9 @@
 import numpy as np
 import multiprocessing as mp
 import ctypes
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 def ndarray_base_to_np(base, shape, dtype=np.float32):
     shared_ndarray = np.ctypeslib.as_array(base.get_obj())

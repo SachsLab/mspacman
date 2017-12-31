@@ -5,6 +5,9 @@ from pytf import FilterBank
 from ..algorithm.pac_ import (pad, mrpad, polar, pac_mvl, pac_hr, pac_mi)
 from ..algorithm.blob_ import (detect_blob)
 from ..utilities.parallel import (Parallel, ParallelDummy)
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 func = dict([
     ('mi', mrpad),

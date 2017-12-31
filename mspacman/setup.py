@@ -1,5 +1,8 @@
 from setuptools import setup
 import os
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 setup(
     name = "mspacman",

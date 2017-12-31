@@ -1,5 +1,8 @@
 import numpy as np
 from pyfftw.interfaces.numpy_fft import rfft, irfft, fftfreq
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 def rms(x, axis=-1):
     return np.sqrt(np.mean(np.abs(x)**2., axis=axis))

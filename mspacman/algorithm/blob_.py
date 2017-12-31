@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.ndimage.filters import sobel
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 def detect_blob(comod, threshold=.5, vmin=0, vmax=1):
 

@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.stats import entropy
+# Authors : David C.C. Lu <davidlu89@gmail.com>
+#
+# License : BSD (3-clause)
 
 def pad(ang, amp, nbins=30, axis=-1):
     """ Organize the signals into a phase-amplitude distribution.
