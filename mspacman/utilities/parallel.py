@@ -5,6 +5,7 @@ import time
 import types
 import numpy as np
 import multiprocessing as mp
+import warnings
 from . import share_utilities as sh
 
 class Counter(object):
@@ -27,6 +28,10 @@ class ParallelDummy(object):
     function = {}
 
     def __init__(self, func, *args, **kwargs):
+
+        warnings.warn("The multiprocessing is disabled! To enable multiprocessing, "+\
+                      "specify 'ins_shape' and 'out_shape' for preallocating shared memory.")
+
         self.f_name = func.__name__
         self.function[self.f_name] = func
         self.kwargs = kwargs

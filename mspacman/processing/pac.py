@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import warnings
-from pytf.filter.filterbank import FilterBank
-from .algorithm.pac_ import (pad, mrpad, polar, pac_mvl, pac_hr, pac_mi)
-from .utilities.parallel import (Parallel, ParallelDummy)
+from pytf import FilterBank
+from ..algorithm.pac_ import (pad, mrpad, polar, pac_mvl, pac_hr, pac_mi)
+from ..algorithm.blob_ import (detect_blob)
+from ..utilities.parallel import (Parallel, ParallelDummy)
 
 func = dict([
     ('mi', mrpad),
@@ -51,16 +51,14 @@ class PhaseAmplitudeCoupling(object):
                     nprocs=1, pac='mi', mprocs=False, **kwargs):
 
         # Pre-defined parameters
-        _comp_threshold = 20
+        _comp_threshold = 15
         _overlap_factor = 0.5
 
         # Phase-Amplitude Coupling Properties
-        self._nprocs = nprocs
-        self._mprocs = True if self.nprocs > 1 else mprocs
         self._method = pac
 
-        self._freq_phase = freq_phase
-        self._freq_amp = freq_amp
+        self._freq_phase = freq_phase if isinstance(freq_phase, np.ndarray) else np.asarray(freq_phase)
+        self._freq_amp = freq_amp if isinstance(freq_amp, np.ndarray) else np.asarray(freq_amp)
         self._sample_rate = sample_rate
         self.fpsize = self.freq_phase.shape[0]
         self.fasize = self.freq_amp.shape[0]
@@ -93,49 +91,24 @@ class PhaseAmplitudeCoupling(object):
                 )
 
         # Initialize PAC
-        self.init_multiprocess( ins_shape=[(self.nch, self.fpsize, self.nsamp_),\
-                                            (self.nch, self.fasize, self.nsamp_)],\
-                                out_shape=(self.nch, self.fpsize, self.fasize),\
-                                method=self.method, **kwargs
-                        )
-
-    def init_multiprocess(self, ins_shape=None, out_shape=None,
-                                ins_dtype=[np.float32, np.float32],
-                                out_dtype=np.float32, **kwargs):
-        """ Initializing multiprocessing for this class.
-
-        Parameters:
-        ----------
-        ins_shape: tuple (default: None)
-            The shape of the input arrays, phases, and amplitudes.
-
-        out_shape: tuple (default: None)
-            The shape of the output array (nch, nlo, nhi, nbins).
-
-        kwargs: dict
-            The key-word arguments for get_pac() method.
-        """
-        if self.mprocs:
-            self._pfunc = Parallel(
-                            self.get_pac, nprocs=self.nprocs, axis=1, flag=0,
-                            ins_shape=ins_shape, out_shape=out_shape,
-                            ins_dtype=ins_dtype, out_dtype=out_dtype,
-                            **kwargs
-                        )
-
-        else:
-            warnings.warn("The multiprocessing is disabled! To enable multiprocessing, "+\
-                        "specify 'ins_shape' and 'out_shape' for preallocating shared memory.")
-
-            self._pfunc = ParallelDummy(self.get_pac, **kwargs)
+        self._nprocs = nprocs
+        self._mprocs = True if self.nprocs > 1 else mprocs
+        self._pfunc = Parallel(
+                        self.get_pac, nprocs=self.nprocs, axis=1, flag=0,
+                        ins_shape = [(self.nch, self.fpsize, self.nsamp_),
+                                     (self.nch, self.fasize, self.nsamp_)],
+                        out_shape = (self.nch, self.fpsize, self.fasize),
+                        ins_dtype = [np.float32, np.float32],
+                        out_dtype = np.float32,
+                        method = self.method,
+                        **kwargs
+                    ) if self.mprocs else ParallelDummy(self.get_pac, method=self.method, **kwargs)
 
 
     def kill(self, opt=None): # kill the multiprocess
         """ Killing all the multiprocessing processes.
         """
         self._pfunc.kill(opt=True)
-        # self._los._pfunc.kill(opt=True)
-        # self._his._pfunc.kill(opt=True)
 
     def comodulogram(self, x=None, x_lo=None, x_hi=None, **kwargs):
         """ Compute vectorized PAC. i.e., the computed PAC has the shape of (nch, nlo, nhi).
@@ -165,7 +138,7 @@ class PhaseAmplitudeCoupling(object):
         return self._comod
 
     def plot_comodulogram(self, ch=None, axs=None, figsize=None, cbar=False, cmap=None,
-                                vmin=None, vmax=None, norm=None, label=False):
+                                vmin=None, vmax=None, norm=None, label=False, draw_blob=False):
         """
         Plot comodulogram.
         TODO: Need to organize the plot better, and improve the implementation efficiency.
@@ -225,14 +198,14 @@ class PhaseAmplitudeCoupling(object):
             self._vmin = None
             self._vmax = None
 
-        elif norm.lower() is 'none':
+        elif norm is 'none':
             norm = None
 
         # Plot imshow()
         self.cax = self._axs.copy()
         for (i,), ax in np.ndenumerate(self._axs):
             self.cax[i] = ax.imshow(_comod[i,:,:].T, cmap=cmap, norm=norm, vmin=self._vmin, vmax=self._vmax,
-                            aspect='auto', origin='lower', extent=extent,
+                            aspect='auto', origin='lower',
                             interpolation=None)
 
         # Plot Labels
@@ -290,6 +263,10 @@ class PhaseAmplitudeCoupling(object):
             ax.bar(bin_centers[:-1], pd[i,:], width=.5)
 
         return self._fig
+
+    @staticmethod
+    def find_pac_blob(comod, threshold=.5, vmin=0, vmax=1):
+        return detect_blob(comod, threshold=threshold, vmin=vmin, vmax=vmax)
 
     @staticmethod
     def get_pac(ang, amp, method='mi', **kwargs):
