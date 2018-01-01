@@ -7,7 +7,7 @@ import os
 setup(
     name = "mspacman",
     version = 0.1,
-    packages = ['mspacman', 'mspacman.algorithm', 'mspacman.generator', 'mspacman.processing', 'mspacman.utilities'],
+    packages = ['mspacman', 'mspacman.viz', 'mspacman.algorithm', 'mspacman.generator', 'mspacman.processing', 'mspacman.utilities'],
     install_requires=['numpy', 'scipy', 'pytf'],
     author = "David Lu",
     author_email = "davidlu89@gmail.com",

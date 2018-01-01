@@ -5,6 +5,7 @@ from pytf import FilterBank
 from ..algorithm.pac_ import (pad, mrpad, polar, pac_mvl, pac_hr, pac_mi)
 from ..algorithm.blob_ import (detect_blob)
 from ..utilities.parallel import (Parallel, ParallelDummy)
+from ..viz.pac_plots import (_plot_comodulogram)
 # Authors : David C.C. Lu <davidlu89@gmail.com>
 #
 # License : BSD (3-clause)
@@ -140,11 +141,11 @@ class PhaseAmplitudeCoupling(object):
         self._comod = self._pfunc.result(np.angle(self._xlo), np.abs(self._xhi))
         return self._comod
 
-    def plot_comodulogram(self, ch=None, axs=None, figsize=None, cbar=False, cmap=None,
-                                vmin=None, vmax=None, norm=None, label=False, draw_blob=False):
+    def plot_comodulogram(self, ch=None, axs=None, figsize=None, cbar=False,
+                                title=None, label=False, xlabel=False, ylabel=False,
+                                fontsize={'ticks': 15, 'axis': 15, 'title': 20}, **kwargs):
         """
         Plot comodulogram.
-        TODO: Need to organize the plot better, and improve the implementation efficiency.
 
         Parameters:
         -----------
@@ -156,15 +157,6 @@ class PhaseAmplitudeCoupling(object):
 
         figsize: tuple
             Specify the figure size.
-
-        vmin: float
-            The minimum value of the comodulogram.
-
-        vmax: float
-            The maximum value of the comodulogram.
-
-        norm: str
-            If 'log': Normalize the imshow() to values 0-1 range on a log scale.
 
         label: bool
             Label the plots. Default is False.
@@ -187,36 +179,18 @@ class PhaseAmplitudeCoupling(object):
         self._axs = np.array(axs).ravel()
         self._fig = fig
 
-        # Imshow Parameters
-        extent = [  self.freq_phase[0,0], self.freq_phase[-1,-1],
-                    self.freq_amp[0,0], self.freq_amp[-1,-1]]
+        if not isinstance(title, list):
+            title = list([title]) * len(self._axs)
 
-        cmap = None if str(cmap).lower() is None else cmap
-        self._vmin = np.min(self._comod) if vmin is None else vmin
-        self._vmax = np.max(self._comod) if vmax is None else vmax
+        xlabel = True if label else xlabel
+        ylabel = True if label else ylabel
 
-        if norm is 'log':
-            from matplotlib.colors import LogNorm
-            norm = LogNorm(vmin=vmin, vmax=vmax)
-            self._vmin = None
-            self._vmax = None
-
-        elif norm is 'none':
-            norm = None
-
-        # Plot imshow()
-        self.cax = self._axs.copy()
         for (i,), ax in np.ndenumerate(self._axs):
-            self.cax[i] = ax.imshow(_comod[i,:,:].T, cmap=cmap, norm=norm, vmin=self._vmin, vmax=self._vmax,
-                            aspect='auto', origin='lower',
-                            interpolation=None)
-
-        # Plot Labels
-        if label:
-            self._axs[0].set_ylabel('Amp. Freqs. [{}]'.format('hz'.title()))
-            for ax in self._axs:
-                ax.set_xlabel('Phase Freqs. [{}]'.format('hz'.title()))
-
+            cbar_ = True if i==len(self._axs)-1 and cbar else False
+            ylabel_ = True if i==0 and ylabel else False
+            _plot_comodulogram(_comod[i,:,:], axs=ax, cbar=cbar_, title=title[i],\
+                                xlabel=xlabel, ylabel=ylabel_, xaxis=self._los.center_freqs.squeeze(), yaxis=self._his.center_freqs.squeeze(),\
+                                vmin=np.min(_comod), vmax=np.max(_comod), fontsize=fontsize, **kwargs)
         return self._fig
 
     def plot_pad(self, ch=None, axs=None, figsize=None, colors=None, nbins=10):
