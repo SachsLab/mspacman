@@ -82,16 +82,24 @@ class PhaseAmplitudeCoupling(object):
         # Initialize filter bank parameters
         if self.freq_phase is not None or self.freq_amp is not None:
             self._order = self._binsize // 4
-            self._los = FilterBank(nch=self.nch, nsamp=self.nsamp,\
-                    binsize=self._binsize, freq_bands=self.freq_phase,\
-                    order=self._order, sample_rate=self.sample_rate,\
-                    decimate_by=self.compression_factor, hilbert=True, nprocs=1\
+            self._los = FilterBank(
+                    nch = self.nch,
+                    nsamp = self.nsamp,
+                    binsize = self._binsize,
+                    order = self._order,
+                    freq_bands = self.freq_phase,
+                    sample_rate = self.sample_rate,
+                    decimate_by = self.compression_factor, hilbert=True, nprocs=1
                 )
 
-            self._his = FilterBank(nch=self.nch, nsamp=self.nsamp,\
-                    binsize=self._binsize, freq_bands=self.freq_amp,\
-                    order=self._order, sample_rate=self.sample_rate,\
-                    decimate_by=self.compression_factor, hilbert=True, nprocs=1\
+            self._his = FilterBank(
+                    nch = self.nch,
+                    nsamp = self.nsamp,
+                    binsize = self._binsize,
+                    order = self._order,
+                    freq_bands = self.freq_amp,
+                    sample_rate = self.sample_rate,
+                    decimate_by = self.compression_factor, hilbert=True, nprocs=1
                 )
 
         # Initialize PAC
