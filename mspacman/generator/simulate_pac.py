@@ -20,7 +20,8 @@ class PACGenerator:
         Amplitude for the Amplitude-enveloped signal.
     """
 
-    def __init__(self, freq_phase, freq_amp, scale_phase, scale_amp, phase_amp=0, sample_rate=None, seed=True):
+    def __init__(self, freq_phase, freq_amp, scale_phase, scale_amp,
+                       phase_amp=0, sample_rate=None, seed=True):
 
         self._freq_phase = freq_phase
         self._freq_amp = freq_amp
@@ -39,9 +40,11 @@ class PACGenerator:
         """ Generate a multi-channel PAC signal.
         Parameters
         ----------
+        n: int
+            The number of sample points.
         pac: float or list
             The intensity of Phase-Amplitude coupling.
-        num_channel: int, optional
+        nch: int, optional
             The number of channels for the generated signal.
         Returns
         -------
@@ -65,7 +68,7 @@ class PACGenerator:
                                         self.freq_phase, self.freq_amp, self.sample_rate, phase_amp=self.phase_amp)
 
         def noise_func(*args, **kwargs):
-            return white(*args, **kwargs)
+            return white(*args, **kwargs) + pink(*args, **kwargs)
 
         noise_ = 0 if noise is None or noise is False else noise_func(self.nch, N+1, std=.5)
 

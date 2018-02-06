@@ -50,8 +50,8 @@ def pink(*N, mean=0, std=1):
         y = y[:,:-1]
 
     # Normalize the results to the white noise
-    y =  normalize(y, white(*N, mean=mean, std=std))
-    if n1 == 1:
+    y = normalize(y, white(*N, mean=mean, std=std))
+    if y.ndim<2:
         return y.flatten()
     else:
         return y
