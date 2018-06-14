@@ -11,11 +11,11 @@ The link to the paper will be provided here once the paper is accepted.
 A [Binder](https://mybinder.org) of the analysis using this work is provided [here]().
 
 ## Dependencies
-* [numpy]
-* [scipy]
-* [matplotlib]
-* [pyfftw]
-* [pytf]
+* [numpy]()
+* [scipy]()
+* [matplotlib]()
+* [pyfftw]()
+* [pytf]()
 
 ## Cite this work
 <!-- If you use this code in your project, please cite [Lu et al. 2018]: -->
