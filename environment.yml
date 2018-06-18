@@ -1,0 +1,11 @@
+name: mspacman-environment
+channels:
+  - conda-forge
+dependencies:
+  - python=3.6
+  - numpy
+  - scipy
+  - pyfftw
+  - pip:
+    - matplotlib
+    - "git+https://github.com/davidlu89/pytf.git"

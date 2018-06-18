@@ -1,5 +1,10 @@
 import numpy as np
-from pyfftw.interfaces.numpy_fft import rfft, irfft, fftfreq
+
+try:
+    import pyfftw.interfaces.numpy_fft as fft
+except ImportError:
+    import scipy.fftpack as fft
+
 # Authors : David C.C. Lu <davidlu89@gmail.com>
 #
 # License : BSD (3-clause)
@@ -45,7 +50,7 @@ def pink(*N, mean=0, std=1):
 
     S = np.sqrt(np.arange(X.shape[-1])+1) # +1 to avoid divide by zero
 
-    y = (irfft(X/S)).real
+    y = (fft.irfft(X/S)).real
     if uneven:
         y = y[:,:-1]
 

@@ -232,8 +232,7 @@ class PhaseAmplitudeCoupling(object):
 
         xlo = _lo.mean(axis=1)[:,np.newaxis,:]
         xhi = _hi.mean(axis=1)[:,np.newaxis,:]
-
-        pd = self._pac_repr_func(np.angle(xlo), np.abs(xhi), nbins=nbins)[:,0,0,:]
+        pd = self._pfunc.result(np.angle(xlo), np.abs(xhi), nbins=nbins)
 
         nch, _ = pd.shape
         bin_centers = np.linspace(-np.pi, np.pi-np.pi/50, nbins+1) + np.pi/10

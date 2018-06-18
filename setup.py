@@ -1,14 +1,16 @@
+import __future__
 from setuptools import setup
 import os
+
 # Authors : David C.C. Lu <davidlu89@gmail.com>
 #
-# License : BSD (3-clause)
+# License : MIT
 
 setup(
     name = "mspacman",
     version = 0.1,
     packages = ['mspacman', 'mspacman.viz', 'mspacman.algorithm', 'mspacman.generator', 'mspacman.app', 'mspacman.utilities'],
-    install_requires=['numpy', 'scipy', 'pytf'],
+    install_requires=['numpy', 'scipy', 'pytf', 'matplotlib'],
     author = "David Lu",
     author_email = "davidlu89@gmail.com",
     description = "mspacman is a tool for analyzing Phase-Amplitude Coupling",
@@ -25,5 +27,11 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Topic :: Scientific/Engineering']
+        'Topic :: Software Development',
+        'Topic :: Scientific/Engineering',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX',
+        'Operating System :: Unix',
+        'Operating System :: MacOS'],
+        platforms='any'
 )
