@@ -8,14 +8,14 @@ However, MSPACMan is developed due to the need for implementing PAC analysis to 
 The link to the paper will be provided here once the paper is accepted.
 
 ## Binder
-A [Binder](https://mybinder.org) of the analysis using this work is provided [here]().
+A [Binder](https://mybinder.org) of the analysis using this work is provided [here](https://github.com/davidlu89/notes_mspacman).
 
 ## Dependencies
-* [numpy]()
-* [scipy]()
-* [matplotlib]()
-* [pyfftw]()
-* [pytf]()
+* [numpy](http://www.numpy.org)
+* [scipy](https://www.scipy.org)
+* [matplotlib](https://matplotlib.org)
+* [pyfftw](https://github.com/pyFFTW/pyFFTW)
+* [pytf](https://github.com/davidlu89/pytf)
 
 ## Cite this work
 <!-- If you use this code in your project, please cite [Lu et al. 2018]: -->
