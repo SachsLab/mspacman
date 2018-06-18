@@ -11,11 +11,11 @@ The link to the paper will be provided here once the paper is accepted.
 A [Binder](https://mybinder.org) of the analysis using this work is provided [here](https://github.com/davidlu89/notes_mspacman).
 
 ## Dependencies
-* [numpy](http://www.numpy.org)
-* [scipy](https://www.scipy.org)
-* [matplotlib](https://matplotlib.org)
-* [pyfftw](https://github.com/pyFFTW/pyFFTW)
-* [pytf](https://github.com/davidlu89/pytf)
+* [numpy](http://www.numpy.org): The Python library used for efficient manipulation multi-dimensional array.
+* [scipy](https://www.scipy.org): The Python library used for scientific computing utilizing the unique NumPy structure in an optimized way. 
+* [matplotlib](https://matplotlib.org): The Python library used for visualizing and plotting of data.
+* [pyfftw](https://github.com/pyFFTW/pyFFTW): A Python wrapper around [FFTW](http://www.fftw.org), the speedy FFT library.
+* [pytf](https://github.com/davidlu89/pytf): A Python library designed for performing time frequency analysis.
 
 ## Cite this work
 <!-- If you use this code in your project, please cite [Lu et al. 2018]: -->
