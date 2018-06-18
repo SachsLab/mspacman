@@ -18,6 +18,7 @@ A [Binder](https://mybinder.org) of the analysis using this work is provided [he
 * [pytf](https://github.com/davidlu89/pytf): A Python library designed for performing time frequency analysis.
 
 ## Cite this work
+At the moment, the paper is still under review with the [PLOS ONE](http://journals.plos.org/plosone/s/journal-information) journal. Until the paper is accepted to journal, you can contact me for acknowledgements.
 <!-- If you use this code in your project, please cite [Lu et al. 2018]: -->
 <!-- @article {lu2018,
     author = {David Chao-Chia Lu, Chadwick Boulay, Adrian D.C. Chan, Adam J. Sachs},
